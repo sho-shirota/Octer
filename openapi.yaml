@@ -1,0 +1,1157 @@
+openapi: 3.0.3
+info:
+  title: Octer Auth API
+  version: 1.0.0
+  description: |
+    ## OcterAPIで使用できる機能一覧
+    1. ユーザー認証
+    2. OAuthを用いたGoogleアカウントでの認証(OAuthで初めて認証を行った際にOcterの専用アカウントを自動作成)
+    3. イベント情報のCRUD処理(一覧取得は日/週/月ごとに可能)
+    4. チーム情報のCRUD処理(チーム内のプロジェクト情報の詳細情報の有無が選択可能)
+    5. プロジェクト情報のCRUD処理(プロジェクト内のタスク情報の詳細情報の有無が選択可能)
+    6. タスク情報のCRUD処理
+
+servers:
+  - url: https://api.octer
+security:
+  - OAuth2: [openid, email, profile]
+paths:
+  /api/auth/login:
+    post:
+      summary: アプリケーションユーザーによるログイン
+      description: |
+        Octerの専用ユーザーによるログイン用エンドポイント  
+        https://api.octer/octer/api/auth/login
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginForm'
+      responses:
+        '204':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login success
+        '401':
+          description: 認証失敗
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Invalid credentials
+
+  /oauth2/authorization/google:
+    get:
+      summary: GoogleアカウントでOAuth2ログインを開始
+      description: |
+        Googleアカウントによるログイン用エンドポイント  
+        https://api.octer/octer/oauth2/authorization/google
+      operationId: OAUth2Login
+      responses:
+        '302':
+          description: Googleログイン画面へリダイレクト
+        '500':
+          description: サーバー内部エラー
+
+  /api/auth/logout:
+    post:
+      summary: ログアウト処理（セッション削除）
+      description: |
+        ログアウトによるセッション削除用エンドポイント  
+        https://api.octer/octer/api/auth/logout
+      operationId: logout
+      responses:
+        '204':
+          description: ログアウト成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out
+
+  /api/auth/get:
+    get:
+      summary: ログイン中のユーザー情報を取得（セッションより）
+      description: |
+        セッションのユーザー情報取得用エンドポイント  
+        https://api.octer/octer/api/auth/get
+      operationId: getUser
+      responses:
+        '200':
+          description: ログインユーザー情報
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: 未認証状態
+  
+  /api/users/register:
+    post:
+      summary: アプリケーションユーザー登録
+      description: |
+        Octerの専用ユーザー登録用エンドポイント  
+        https://api.octer/octer/api/users/register
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserForm'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: 登録失敗
+
+  /api/events/date/list/{date}:
+    post:
+      summary: イベント情報一覧取得
+      description: |
+        日付け指定のイベント情報取得用エンドポイント(yyyy-mm-dd)  
+        https://api.octer/octer/api/events/date/list/{date}
+      operationId: getDateEventList
+      security:
+        - OAuth2: [openid, email, profile]
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: イベント一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: イベント一覧の取得に成功しました。
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+        "401":
+          description: 未認証状態
+          
+  /api/events/week/list/{week}:
+    post:
+      summary: イベント情報一覧取得
+      description: |
+        週指定のイベント情報取得用エンドポイント(yyyy-w○○)  
+        https://api.octer/octer/api/events/date/list/{date}
+      operationId: getWeekEventList
+      security:
+        - OAuth2: [openid, email, profile]
+      parameters:
+        - name: week
+          in: path
+          required: true
+          schema:
+            type: string
+            
+      responses:
+        "200":
+          description: イベント一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: イベント一覧の取得に成功しました。
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+        "401":
+          description: 未認証状態
+          
+  /api/events/month/list/{month}:
+    post:
+      summary: イベント情報一覧取得
+      description: |
+        月指定のイベント情報取得用エンドポイント(yyyy-mm)  
+        https://api.octer/octer/api/events/date/list/{month}
+      operationId: getMonthEventList
+      security:
+        - OAuth2: [openid, email, profile]
+      parameters:
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: イベント一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: イベント一覧の取得に成功しました。
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+        "401":
+          description: 未認証状態
+
+  /api/events/register:
+    post:
+      summary: イベント情報登録
+      description: |
+        イベント情報登録用エンドポイント  
+        https://api.octer/octer/api/events/register
+      operationId: registerEvent
+      security:
+        - OAuth2: [openid, email, profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventForm'
+      responses:
+        "201":
+          description: イベント情報登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: イベント情報の登録に成功しました。
+        "401":
+          description: 未認証状態
+
+  /api/events/update:
+    put:
+      summary: イベント情報更新
+      description: |
+        イベント情報更新用エンドポイント  
+        https://api.octer/octer/api/events/update
+      operationId: updateEvent
+      security:
+        - OAuth2: [openid, email, profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventForm'
+      responses:
+        "204":
+          description: イベント情報更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: イベント情報の更新に成功しました。
+        "401":
+          description: 未認証状態
+
+  /api/events/delete/{id}:
+    delete:
+      summary: イベント情報削除
+      description: |
+        イベント情報削除用エンドポイント  
+        https://api.octer/octer/api/events/delete/{id}
+      operationId: deleteEvent
+      security:
+        - OAuth2: [openid, email, profile]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: イベント情報削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: イベント情報の削除に成功しました。
+        "401":
+          description: 未認証状態
+          
+  /api/teams/list:
+    get:
+      summary: チーム一覧取得
+      description: |
+        チーム情報取得用エンドポイント 
+        https://api.octer/octer/api/teams/list
+      operationId: getTeamList
+      security:
+         - OAuth2: [openid, email, profile]
+      responses:
+        "200":
+          description: チーム一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: チーム一覧の取得に成功しました。
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Team'
+                      
+  /api/teams/only/list:
+    get:
+      summary: チーム一覧取得(プロジェクトの詳細情報なし)
+      description: |
+        チーム情報取得(プロジェクトの詳細情報なし)用エンドポイント 
+        https://api.octer/octer/api/teams/only/list
+      operationId: getTeamOnlyList
+      security:
+         - OAuth2: [openid, email, profile]
+      responses:
+        "200":
+          description: チーム一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: チーム一覧の取得に成功しました。
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Team'
+
+  /api/teams/register:
+    post:
+      summary: チーム情報登録
+      description: |
+        チーム情報登録用エンドポイント 
+        https://api.octer/octer/api/teams/register
+      operationId: registerTeam
+      security:
+        - OAuth2: [openid, email, profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamForm'
+      responses:
+        "201":
+          description: チーム情報登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: チーム情報の登録に成功しました。
+  /api/teams/update:
+    put:
+      summary: チーム情報更新
+      description: |
+        チーム情更新録用エンドポイント 
+        https://api.octer/octer/api/teams/update
+      operationId: updateTeam
+      security:
+        - OAuth2: [openid, email, profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamForm'
+      responses:
+        "204":
+          description: チーム情報更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: チーム情報の更新に成功しました。
+  /api/teams/delete/{id}:
+    delete:
+      summary: チーム情報削除
+      description: |
+        チーム情更削除用エンドポイント 
+        https://api.octer/octer/api/teams/delete/{id}
+      operationId: deleteTeam
+      security:
+        - OAuth2: [openid, email, profile]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: チーム情報削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: チーム情報の削除に成功しました。
+  
+  /api/projects/list:
+    get:
+      summary: プロジェクト一覧取得
+      description: |
+        プロジェクト情報取得用エンドポイント 
+        https://api.octer/octer/api/projects/list
+      operationId: getProjectList
+      security:
+         - OAuth2: [openid, email, profile]
+      responses:
+        "200":
+          description: プロジェクト一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: プロジェクト一覧の取得に成功しました。
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+
+  /api/projects/only/list:
+    get:
+      summary: プロジェクト一覧取得(タスクの詳細情報なし)
+      description: |
+        プロジェクト情報取得(タスクの詳細情報なし)用エンドポイント 
+        https://api.octer/octer/api/projects/only/list
+      operationId: getProjectOnlyList
+      security:
+         - OAuth2: [openid, email, profile]
+      responses:
+        "200":
+          description: プロジェクト一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: プロジェクト一覧の取得に成功しました。
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+                      
+  /api/projects/register:
+    post:
+      summary: プロジェクト情報登録
+      operationId: registerProject
+      security:
+        - OAuth2: [openid, email, profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectForm'
+      responses:
+        "201":
+          description: プロジェクト情報登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: プロジェクト情報の登録に成功しました。
+  
+  /api/projects/update:
+    put:
+      summary: プロジェクト情報更新
+      description: |
+        プロジェクト情報更新用エンドポイント 
+        https://api.octer/octer/api/projects/update
+      operationId: updateProject
+      security:
+        - OAuth2: [openid, email, profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectForm'
+      responses:
+        "204":
+          description: プロジェクト情報更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: プロジェクト情報の更新に成功しました。
+  
+  /api/projects/delete/{id}:
+    delete:
+      summary: プロジェクト情報削除
+      description: |
+        プロジェクト情報削除用エンドポイント 
+        https://api.octer/octer/api/projects/delete/{id}
+      operationId: deleteProject
+      security:
+        - OAuth2: [openid, email, profile]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: プロジェクト情報削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: プロジェクト情報の削除に成功しました。
+  
+  /api/projects/categories/list:
+    get:
+      summary: プロジェクトカテゴリ一覧取得
+      description: |
+        プロジェクトカテゴリー情報取得用エンドポイント 
+        https://api.octer/octer/api/projects/categories/list
+      operationId: getProjectCategoryList
+      security:
+         - OAuth2: [openid, email, profile]
+      responses:
+        "200":
+          description: プロジェクトカテゴ一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: プロジェクトカテゴ一覧の取得に成功しました。
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProjectCategory'
+  
+  /api/projects/categories/register/{name}:
+    post:
+      summary: プロジェクトカテゴリ情報登録
+      description: |
+        プロジェクトカテゴリー情報取登録エンドポイント 
+        https://api.octer/octer/api/projects/categories/list
+      operationId: registerProjectCategory
+      security:
+        - OAuth2: [openid, email, profile]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: プロジェクトカテゴリ情報登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: プロジェクトカテゴリ情報の登録に成功しました。
+  
+  /api/projects/categories/update:
+    put:
+      summary: プロジェクトカテゴリ情報更新
+      description: |
+        プロジェクトカテゴリー情報取更新エンドポイント 
+        https://api.octer/octer/api/projects/categories/update
+      operationId: updateProjectCategory
+      security:
+        - OAuth2: [openid, email, profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectForm'
+      responses:
+        "204":
+          description: プロジェクトカテゴリ情報更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: プロジェクトカテゴリ情報の更新に成功しました。
+  
+  /api/projects/categories/delete/{id}:
+    delete:
+      summary: プロジェクトカテゴリ情報削除
+      description: |
+        プロジェクトカテゴリー情報取削除エンドポイント 
+        https://api.octer/octer/api/projects/categories/delete/{id}
+      operationId: deleteProjectCategory
+      security:
+        - OAuth2: [openid, email, profile]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: プロジェクトカテゴリ情報削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: プロジェクトカテゴリ情報の削除に成功しました。
+  
+  /api/tasks/list:
+    get:
+      summary: タスク一覧取得
+      description: |
+        タスク情報取得用エンドポイント 
+        https://api.octer/octer/api/tasks/list
+      operationId: getTaskList
+      security:
+         - OAuth2: [openid, email, profile]
+      responses:
+        "200":
+          description: タスク一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: タスク一覧の取得に成功しました。
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+    
+  /api/tasks/register:
+    post:
+      summary: タスク情報登録
+      description: |
+        タスク情報登録用エンドポイント 
+        https://api.octer/octer/api/tasks/register
+      operationId: registerTask
+      security:
+        - OAuth2: [openid, email, profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskForm'
+      responses:
+        "201":
+          description: タスク情報登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: タスク情報の登録に成功しました。
+  
+  /api/tasks/update:
+    put:
+      summary: タスク情報更新
+      description: |
+        タスク情報更新用エンドポイント 
+        https://api.octer/octer/api/tasks/update
+      operationId: updateTask
+      security:
+        - OAuth2: [openid, email, profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectForm'
+      responses:
+        "204":
+          description: タスク情報更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: タスク情報の更新に成功しました。
+  
+  /api/tasks/delete/{id}:
+    delete:
+      summary: タスク情報削除
+      description: |
+        タスク情報削除用エンドポイント 
+        https://api.octer/octer/api/tasks/delete/{id}
+      operationId: deleteTask
+      security:
+        - OAuth2: [openid, email, profile]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: タスク情報削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: タスク情報の削除に成功しました。
+
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+          tokenUrl: https://oauth2.googleapis.com/token
+          scopes:
+            openid: OpenID Connect scope
+            email: Access to your email
+            profile: Access to your basic profile
+
+  schemas:
+    LoginForm:
+      type: object
+      x-imports:
+        - com.octer.backend.validation.annotation.ValidEmail
+        - com.octer.backend.validation.annotation.ValidPassword
+      required: [email, password]
+      properties:
+        email:
+          description: "取得したメールアドレス"
+          type: string
+          x-field-extra-annotation: "@ValidEmail"
+          example: user@example.com
+        password:
+          description: "取得したパスワード"
+          type: string
+          format: password
+          x-field-extra-annotation: "@ValidPassword"
+          example: secret123
+          
+    UserForm:
+      type: object
+      x-imports:
+        - com.octer.backend.validation.annotation.ValidEmail
+        - com.octer.backend.validation.annotation.ValidPassword
+      required: [name,email, password]
+      properties:
+        name:
+          description: "取得したユーザー名"
+          type: string
+          x-field-extra-annotation: "@ValidName"
+          example: user
+        email:
+          description: "取得したメールアドレス"
+          type: string
+          x-field-extra-annotation: "@ValidEmail"
+          example: user@example.com
+        password:
+          description: "取得したパスワード"
+          type: string
+          format: password
+          x-field-extra-annotation: "@ValidPassword"
+          example: secret123
+        profilePicture:
+          description: "取得した画像データ"
+          type: string
+          format: binary
+          
+    LocationForm:
+      type: object
+      required: [latitude,longitude]
+      properties:
+        latitude:
+          description: "取得した緯度"
+          type: number
+          format: double
+        longitude:
+          description: "取得した経度"
+          type: number
+          format: double
+          
+    EventForm:
+      type: object
+      required: [title,startDate,endDate]
+      properties:
+        title:
+          description: "取得したイベントタイトル"
+          type: string
+        description:
+          description: "取得したイベントの説明"
+          type: string
+        startDateTime:
+          description: "取得したイベントの開始日"
+          type: string
+          format: date-time
+        endDateTime:
+          description: "取得したイベントの終了日"
+          type: string
+          format: date-time
+        location:
+          description: "取得したイベントの位置情報"
+          $ref: '#/components/schemas/LocationForm'
+        categoryId:
+          description: "取得したイベントのカテゴリーID"
+          type: integer
+    
+    TeamForm:
+      type: object
+      required: [name,members]
+      properties:
+        name:
+          description: "取得したチーム名"
+          type: string
+        members:
+          description: "取得したチームのメンバー情報"
+          type: array
+          items:
+            type: string
+        project:
+          description: "取得したチームのプロジェクト情報"
+          $ref: '#/components/schemas/ProjectForm'
+          
+    ProjectForm:
+      type: object
+      required: [name,startDate,endDate,readerName]
+      properties:
+        name:
+          description: "取得したプロジェクト名"
+          type: string
+        description:
+          description: "取得したプロジェクトの説明"
+          type: string
+        categoryId:
+          description: "取得したイベントのカテゴリーID"
+          type: integer
+        startDate:
+          description: "取得したプロジェクトの開始日"
+          type: string
+          format: date
+        endDate:
+          description: "取得したプロジェクトの終了日"
+          type: string
+          format: date
+        readerName:
+          description: "取得したプロジェクトリーダー名"
+          type: string
+        members:
+          description: "プロジェクトメンバー"
+          type: array
+          items:
+            type: string
+        tasks:
+          description: "取得したタスク情報"
+          $ref: '#/components/schemas/TaskForm'
+          
+    TaskForm:
+      type: object
+      required: [name,priority,status,startDate,endDate,parameter]
+      properties:
+        name:
+          description: "取得したタスク名"
+          type: string
+        description:
+          description: "取得したタスクの説明"
+          type: string
+        priority:
+          description: "取得したタスクの優先順位"
+          type: integer
+        status:
+          description: "取得したタスクのステータス"
+          type: string
+        startDate:
+          description: "取得したタスクの開始日"
+          type: string
+          format: date
+        endDate:
+          description: "取得したタスクの終了日"
+          type: string
+          format: date
+        parameter:
+          description: "取得したタスクの進捗"
+          type: integer
+        parentId:
+          description: "取得した親タスクのID"
+          type: integer
+
+    User:
+      type: object
+      x-imports:
+        - org.springframework.security.core.GrantedAuthority
+        - org.springframework.security.core.userdetails.UserDetails
+        - com.octer.backend.validation.annotation.ValidName
+        - com.octer.backend.validation.annotation.ValidEmail
+        - com.octer.backend.validation.annotation.ValidPassword
+        - com.fasterxml.jackson.annotation.JsonIgnore
+      x-implements:
+        - UserDetails
+      x-userdetails: true
+      required: [id,name, email, created_at]
+      properties:
+        id:
+          description: "ユーザーID"
+          type: integer
+        name:
+          description: "ユーザー名"
+          type: string
+          x-field-extra-annotation: "@ValidName"
+        oauth_provider:
+          description: "使用プロバイダー"
+          type: string
+        email:
+          description: "メールアドレス"
+          type: string
+          format: email
+          x-field-extra-annotation: "@ValidEmail"
+        password:
+          description: "パスワード"
+          type: string
+          format: password
+          x-field-extra-annotation: |
+            @JsonIgnore
+              @ValidPassword
+        profilePictureUrl:
+          description: "画像データのパス"
+          type: string
+        createdAt:
+          description: "作成日"
+          type: string
+          format: date-time
+        lastLoginAt:
+          description: "最終ログイン日"
+          type: string
+          format: date-time
+
+    Location:
+      type: object
+      required: [id,latitude,longitude]
+      properties:
+        id:
+          description: "位置情報ID"
+          type: integer
+        latitude:
+          description: "緯度"
+          type: number
+          format: double
+        longitude:
+          description: "経度"
+          type: number
+          format: double
+
+    Event:
+      type: object
+      required: [id,title,startDateTime,endDateTime]
+      properties:
+        id:
+          description: "イベントID"
+          type: integer
+        title:
+          description: "イベントのタイトル"
+          type: string
+        description:
+          description: "イベントの詳細"
+          type: string
+        startDateTime:
+          description: "イベントの開始日"
+          type: string
+          format: date-time
+        endDateTime:
+          description: "イベントの終了日"
+          type: string
+          format: date-time
+        location:
+          description: "位置情報"
+          $ref: '#/components/schemas/Location'
+        category:
+          description: "カテゴリー"
+          type: string
+          
+    Team:
+      type: object
+      required: [id,name,members]
+      properties:
+        id:
+          description: "チームID"
+          type: integer
+        name:
+          description: "チーム名"
+          type: string
+        members:
+          description: "チームメンバー"
+          type: array
+          items:
+            type: string
+        project:
+          description: "チームのプロジェクト"
+          $ref: '#/components/schemas/Project'
+    
+    ProjectCategory:
+      type: object
+      required: [id,name]
+      properties:
+        id:
+          description: "カテゴリーID"
+          type: integer
+        name:
+          description: "カテゴリー名"
+          type: string
+          
+    Task:
+      type: object
+      required: [id,name,priority,status,startDate,endDate,parameter]
+      properties:
+        id:
+          description: "タスクID"
+          type: integer
+        name:
+          description: "タスク名"
+          type: string
+        description:
+          description: "タスクの詳細"
+          type: string
+        priority:
+          description: "タスクの優先順位"
+          type: integer
+        status:
+          description: "タスクのステータス"
+          type: string
+        startDate:
+          description: "タスクの開始日"
+          type: string
+          format: date
+        endDate:
+          description: "タスクの終了日"
+          type: string
+          format: date
+        parameter:
+          description: "タスクの進捗"
+          type: integer
+        parentId:
+          description: "親タスクのID"
+          type: integer
+          
+    Project:
+      type: object
+      required: [id,name,startDate,endDate,readerName]
+      properties:
+        id:
+          description: "プロジェクトID"
+          type: integer
+        name:
+          description: "プロジェクト名"
+          type: string
+        description:
+          description: "プロジェクトの詳細"
+          type: string
+        category:
+          description: "プロジェクトカテゴリー名"
+          type: string
+        startDate:
+          description: "プロジェクトの開始日"
+          type: string
+          format: date
+        endDate:
+          description: "プロジェクトの終了日"
+          type: string
+          format: date
+        readerName:
+          description: "プロジェクトリーダー名"
+          type: string
+        members:
+          description: "プロジェクトメンバー名"
+          type: array
+          items:
+            type: string
+        tasks:
+          description: "プロジェクトのタスク情報"
+          $ref: '#/components/schemas/Task'
+          
